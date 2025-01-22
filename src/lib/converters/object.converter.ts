@@ -1,3 +1,5 @@
+import { transform as svgrTransform } from '@svgr/core';
+
 import { generateObjectInterface, generateTypeDefinition } from '../generators/code-snippet-generators';
 import { writeFile } from '../helpers/file-helpers';
 import { Logger } from '../helpers/logger';
@@ -73,9 +75,10 @@ async function generateTSObject(
 async function generateTSXObject(svgDefinitions: SvgDefinition[], conversionOptions: ObjectConversionOptions) {
   const { objectName } = conversionOptions;
   let svgObject = '';
-  svgDefinitions.forEach((svgDefinition: SvgDefinition) => {
+  svgDefinitions.forEach(async (svgDefinition: SvgDefinition) => {
     const capitalizedTypeName = svgDefinition.typeName.charAt(0).toUpperCase() + svgDefinition.typeName.slice(1);
-    svgObject += `${capitalizedTypeName}: () => (${svgDefinition.data}),\n`;
+    const svg = await svgrTransform(svgDefinition.data);
+    svgObject += `${capitalizedTypeName}: () => (${svg}),\n`;
   });
 
   return !objectName ? `export default {${svgObject}}` : `export const ${objectName} = ${svgObject.toString()}`;

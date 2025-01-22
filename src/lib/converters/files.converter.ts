@@ -22,66 +22,6 @@ import { FILE_TYPE } from '../shared/file-type.model';
 import { filesProcessor, SvgDefinition } from './shared.converter';
 
 export const convertToFiles = async (conversionOptions: FilesConversionOptions): Promise<void> => {
-  const { tsx } = conversionOptions;
-  if (tsx) {
-    await generateTSXFiles(conversionOptions);
-  } else {
-    await generateTSFiles(conversionOptions);
-  }
-};
-
-async function generateTSXFiles(conversionOptions: FilesConversionOptions) {
-  const {
-    outputDirectory,
-    iconsFolderName,
-    exportCompleteIconSet,
-    completeIconSetName,
-    barrelFileName,
-    interfaceName,
-    generateType,
-    modelFileName,
-  } = conversionOptions;
-
-  const svgDefinitions = await callAndMonitorAsync<SvgDefinition[]>(
-    filesProcessor.bind({}, conversionOptions),
-    'Processing SVG files',
-  );
-
-  const generatedFileNames = await callAndMonitorAsync<string[]>(
-    generateTSXFileConstants.bind({}, svgDefinitions, outputDirectory, iconsFolderName),
-    'Generate TSX constants',
-  );
-
-  if (exportCompleteIconSet) {
-    await callAndMonitorAsync<void>(
-      generateCompleteIconSet.bind(
-        {},
-        svgDefinitions,
-        outputDirectory,
-        iconsFolderName,
-        completeIconSetName,
-        interfaceName,
-        generateType,
-        modelFileName,
-      ),
-      'Export complete icon set',
-    );
-    generatedFileNames.push(completeIconSetName);
-  }
-
-  const indexFileContent = generatedFileNames
-    .map((generatedFileName: string) => generateExportStatement(generatedFileName, iconsFolderName))
-    .join('');
-
-  await callAndMonitorAsync<void>(
-    writeFile.bind({}, outputDirectory, barrelFileName, indexFileContent),
-    'Generate barrel file',
-  );
-
-  Logger.generationSuccess(outputDirectory);
-}
-
-async function generateTSFiles(conversionOptions: FilesConversionOptions) {
   const {
     outputDirectory,
     modelFileName,
@@ -94,6 +34,7 @@ async function generateTSFiles(conversionOptions: FilesConversionOptions) {
     compilationOutput,
     barrelFileName,
     generateType,
+    tsx,
   } = conversionOptions;
   await callAndMonitorAsync<void>(
     deleteFolder.bind({}, `${outputDirectory}/${iconsFolderName}`),
@@ -104,10 +45,19 @@ async function generateTSFiles(conversionOptions: FilesConversionOptions) {
     'Processing SVG files',
   );
 
-  const generatedFileNames = await callAndMonitorAsync<string[]>(
-    generateSVGConstants.bind({}, svgDefinitions, outputDirectory, iconsFolderName),
-    'Generate SVG constants',
-  );
+  let generatedFileNames;
+
+  if (tsx) {
+    generatedFileNames = await callAndMonitorAsync<string[]>(
+      generateTSXFileConstants.bind({}, svgDefinitions, outputDirectory, iconsFolderName),
+      'Generate TSX constants',
+    );
+  } else {
+    generatedFileNames = await callAndMonitorAsync<string[]>(
+      generateSVGConstants.bind({}, svgDefinitions, outputDirectory, iconsFolderName),
+      'Generate SVG constants',
+    );
+  }
 
   if (exportCompleteIconSet) {
     await callAndMonitorAsync<void>(
@@ -120,6 +70,7 @@ async function generateTSFiles(conversionOptions: FilesConversionOptions) {
         interfaceName,
         modelFileName,
         generateType,
+        tsx,
       ),
       'Export complete icon set',
     );
@@ -162,7 +113,7 @@ async function generateTSFiles(conversionOptions: FilesConversionOptions) {
     );
   }
   Logger.generationSuccess(outputDirectory);
-}
+};
 
 const generateSVGConstants = async (
   svgDefinitions: SvgDefinition[],
@@ -190,11 +141,14 @@ const generateTSXFileConstants = async (
   const generatedFileNames: string[] = [];
   await Promise.all(
     svgDefinitions.map(async (svgDefinition) => {
-      const tsxConstant = generateTSXConstant(svgDefinition.variableName, svgDefinition.data);
+      svgDefinition.variableName =
+        svgDefinition.variableName.charAt(0).toUpperCase() + svgDefinition.variableName.slice(1);
+      const tsxConstant = await generateTSXConstant(svgDefinition.variableName, svgDefinition.data);
       const generatedFileName = `${svgDefinition.prefix}-${svgDefinition.filenameWithoutEnding}.icon`;
       generatedFileNames.push(generatedFileName);
       await writeFile(`${outputDirectory}/${iconsFolderName}`, generatedFileName, tsxConstant, FILE_TYPE.TSX);
       Logger.verboseInfo(`write file svg: ${outputDirectory}/${iconsFolderName}/${generatedFileName}.tsx`);
+      return svgDefinition;
     }),
   );
   return generatedFileNames;
@@ -208,6 +162,7 @@ const generateCompleteIconSet = async (
   interfaceName?: string,
   modelFileName?: string,
   generateType?: boolean,
+  tsx?: boolean,
 ): Promise<void> => {
   const completeIconSetContent = generateCompleteIconSetContent(
     svgDefinitions,
@@ -215,6 +170,7 @@ const generateCompleteIconSet = async (
     interfaceName,
     modelFileName,
     generateType,
+    tsx,
   );
   await writeFile(`${outputDirectory}/${iconsFolderName}`, completeIconSetName, completeIconSetContent);
 };

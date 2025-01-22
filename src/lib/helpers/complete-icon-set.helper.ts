@@ -10,11 +10,13 @@ export const generateCompleteIconSetContent = (
   interfaceName?: string,
   modelFileName?: string,
   generateType?: boolean,
+  tsx?: boolean,
 ): string => {
   const importSection = generateImportSection(
     svgDefinitions,
     generateType ? interfaceName : undefined,
     generateType ? modelFileName : undefined,
+    tsx,
   );
   const exportSection = generateExportSection(
     svgDefinitions,
@@ -29,12 +31,13 @@ const generateImportSection = (
   svgDefinitions: SvgDefinition[],
   interfaceName?: string,
   modelFileName?: string,
+  tsx?: boolean,
 ): string => {
   const imports =
     interfaceName && modelFileName ? generateNamedImportStatement(interfaceName, `./${modelFileName}`) : '';
   return svgDefinitions.reduce((acc: string, svgDefinition: SvgDefinition) => {
     acc += generateNamedImportStatement(
-      svgDefinition.variableName,
+      tsx ? `default as ${svgDefinition.variableName}` : svgDefinition.variableName,
       `./${svgDefinition.prefix}-${svgDefinition.filenameWithoutEnding}.icon`,
     );
     return acc;

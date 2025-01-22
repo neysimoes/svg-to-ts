@@ -263,10 +263,13 @@ describe('Generators', () => {
   });
 
   describe('TSX', () => {
-    it('should convert a svg to a React component', () => {
-      const expected = `export const Smile = (props: {[key: string]: any}) => (<svg class="my-awesome-svg" {...props}></svg>);`;
+    it('should convert a svg to a React component', async () => {
+      const expected = `import * as React from "react";
+import type { SVGProps } from "react";
+const Smile = (props: SVGProps<SVGSVGElement>) => <svg className="my-awesome-svg" {...props} />;
+export default Smile;`;
 
-      const actual = generateTSXConstant('smile', '<svg class="my-awesome-svg"></svg>');
+      const actual = await generateTSXConstant('Smile', '<svg class="my-awesome-svg"></svg>');
       expect(actual).toEqual(expected);
     });
   });

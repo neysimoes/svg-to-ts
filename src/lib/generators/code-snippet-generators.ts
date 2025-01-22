@@ -1,3 +1,4 @@
+import { transform as svgrTransform } from '@svgr/core';
 import camelCase from 'lodash.camelcase';
 import kebabCase from 'lodash.kebabcase';
 import snakeCase from 'lodash.snakecase';
@@ -110,10 +111,8 @@ export const generateSvgConstant = (variableName: string, filenameWithoutEnding:
             };`;
 };
 
-export function generateTSXConstant(variableName: string, svg: string) {
-  const variableNameCapitalized = variableName.charAt(0).toUpperCase() + variableName.slice(1);
-  const svgStringWithProps = svg.replace('>', ' {...props}>');
-  return `export const ${variableNameCapitalized} = (props: {[key: string]: any}) => (${svgStringWithProps});`;
+export async function generateTSXConstant(variableName: string, svg: string) {
+  return await svgrTransform(svg, { typescript: true, plugins: ['@svgr/plugin-jsx'] }, { componentName: variableName });
 }
 
 export const generateExportStatement = (fileName: string, generatedIconsFolderName?: string): string => {
@@ -125,6 +124,9 @@ export const generateExportStatement = (fileName: string, generatedIconsFolderNa
 
 export const generateNamedImportStatement = (name: string, module: string): string =>
   `import {${name}} from '${module}';\n`;
+
+export const generateNamedImportStatementTSX = (name: string, module: string): string =>
+  `import { default as ${name}} from '${module}';\n`;
 
 export const generateTypeName = (filenameWithoutEnding, delimiter: Delimiter, namePrefix?: string): string => {
   if (delimiter === Delimiter.CAMEL) {
